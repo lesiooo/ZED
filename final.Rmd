@@ -1,0 +1,207 @@
+---
+title: "ZED_Project"
+author: "Leszek Stencel"
+date: "23 01 2020"
+always_allow_html: true
+output:
+  md_document:
+    toc: yes
+    toc_depth: 2
+    variant: markdown_github
+  html_document:
+    depth: 2
+    highlight: tango
+    number_sections: yes
+    theme: united
+    toc: yes
+---
+
+### Spis treści
+
+1. [Podsumowanie analizy danych](#1)
+2. [Wykorzystane biblioteki](#2)
+3. [Wczytanie danych z pliku](#3)
+4. [Opis pliku wejściowego](#4)
+5. [Czyszczenie i przetwarzanie brakującyhc danych](#5)
+6. [Analiza atrybutów](#6)
+7. [Korelacja między atrybutami](#7)
+8. [Interaktywny wykres](#8)
+9. [Zapewnienie powtarzalności + Regresor](#9)
+10. [Analiza ważności atrybutów](#10)
+
+#<a name="1"></a>
+# Posumowanie analizy zbioru danych
+
+Celem tego projektu jest prezentacja danych o przwidywanej długości życia ludzi w poszczególnych krajach świata. Dane zbierane były w latach 2000 - 2015 przez przedstawicieli WHO (World Health Organization). Zbiór danych zawiera m. in. dane o umieralności dzieci i dorosłych, odsetku szczepień wykonywanych, czy danych ekonomicznych w poszczególnych krajach. 
+
+
+Zbiór danych dostępny pod adresem: 
+#<a name="2"></a>
+# Wykorzystane biblioteki
+
+```{r List_library, warning=FALSE, message=FALSE, cache=FALSE}
+library(plotly)
+library(caret)
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(corrplot)
+library(knitr)
+library(tidyr)
+```
+
+
+#<a name="3"></a>
+# Wczytanie danych z pliku
+
+Wczytanie danych z pliku. Za pomocą heurystyki wyznaczam typy danych.
+
+```{r read_data, results='hide', cache=TRUE}
+file_data <- read.table("data.csv", sep = ',', comment.char = "", na.strings = 'NA', header = TRUE)
+column_datatypes <- sapply(file_data, class)
+raw_data <- read.table("data.csv", sep = ',', comment.char = "", na.strings = 'NA', header = TRUE, colClasses = column_datatypes)
+```
+
+Załadowano `r nrow(raw_data)` wierszy, które mają `r ncol(raw_data)` kolumny.
+
+#<a name="4"></a>
+# Opis pliku wejściowego
+
+
+Atrybut                 | Opis
+------------------------|--------------------------------------------
+Country                 | Kraj przeprowadzania badań
+Year                    | Rok w którym zbierano dane
+Status                  | Oznaczenie kraju (rozwinięty lub rozwijający się)
+Life expectancy         | Przewidywana średnia długość życia
+Adult Mortality         | wskaźnik umieralności u dorosłych, obojga płci między 15 a 60 rokiem życia na 1000 osób populacji
+infant deaths           | liczba zgonów niemowląt na 1000 osób populacji
+Alcohol                 | zarejestrowana średnia ilość w litrach czystego alkoholu
+percentage expenditure  | wydatki na zdrowie, procent PKB
+Hepatitis B             | procentowa  ochrona szczepienna przeciwko WZW B wśród dzieci w wieku 1 roku 
+Measles                 | Liczba zgłoszonych zachorowań na Odrę na 1000 osób
+BMI                     | średni wskaźnik BMI w całej populacji
+under-five deaths       | liczba zgonów dzieci poniżej 5 roku życia na 1000 osób
+Polio                   | Procent szczepień przeciwko Polio wśród 1-latków
+Total expenditure       | Odsetek całkowitych wydatków na zdrowię przez instytucje rządowe i samorządowe
+Diphtheria              | Procent szczepień przeciwko krztuścowi wśród dzieci w wieku 1 roku
+HIV/AIDS                | zgony na HIV/AIDS na 1000 osób populacji
+GDP                     | PKB na mieszkańca w USD
+Population              | Populacja kraju
+thinness 1-19 years     | Procent występowania niedowagi wśród dzieci w wieku 1-19 lat
+thinness 5-9 years      | Procent występowania niedowagi wśród dzieci w wieku 5-9
+Income composition of   | Wskaźnik rozwoju społecznego pod względem struktury dochodów w zakresie zasobów (wskaźnik od 0 do 1)
+Schooling               | Liczba lat nauki
+
+
+
+#<a name="5"></a>
+# Czyszczenie danych, uzupełnienie brakujących wartości
+
+
+```{r clean_data, results='hide', cache=TRUE}
+
+data_without_na_in_life_expectancy  <-  (raw_data[!is.na(raw_data$Life.expectancy),])
+dim(data_without_na_in_life_expectancy)
+for(i in 1:ncol(data_without_na_in_life_expectancy)){
+  data_without_na_in_life_expectancy[is.na(data_without_na_in_life_expectancy[,i]), i] <- mean(as.numeric(data_without_na_in_life_expectancy[,i]), na.rm = TRUE)
+}
+clean_data <-data_without_na_in_life_expectancy
+
+```
+
+
+#<a name="6"></a>
+# Analiza atrybutów + rozkłady wartości atrybutów
+```{r Summary, cache=TRUE}
+
+summary(clean_data)
+summary(raw_data)
+
+```
+``` {r atrybuty, cache=TRUE}
+attr<-select(data_without_na_in_life_expectancy,-Country, -Year, -Status)
+a <- list()
+for (col in colnames(attr)) {
+a[[col]] <-((ggplot(attr) +
+    aes_string(x=col) +
+    geom_histogram(bins = 30))) 
+}
+
+do.call("grid.arrange",c(a, ncol = 5))
+```
+
+
+#<a name="7"></a>
+# Korelacja między atrybutami
+
+
+Analizę związków pomiędzy atrybutami dokonano za pomocą wizualizacji macierzy korelacji.
+
+```{r corAnalysis, cache=TRUE}
+corMatrix <- cor(data_without_na_in_life_expectancy %>% select(-Country, -Status),use="complete.obs")
+#clases
+corrplot(corMatrix, method = "square")
+```
+
+
+#<a name="8"></a>
+# Interaktywny wykres
+
+```{r interaktywny wykres, warning=FALSE, cache=TRUE}
+wykres <- data_without_na_in_life_expectancy[1:151, ] %>% group_by(Country, Year) %>% summarise(life = Life.expectancy)
+
+ggplotwykres <- ggplot(data = wykres, aes(wykres$Country
+, wykres$life,  color=factor(wykres$life))) + 
+  geom_point()+
+  labs(y="Year") + 
+  labs(x="Country")+
+  labs("Interaktywny wykres")
+ggplotly(ggplotwykres,dynamicTicks = TRUE,width = NULL, height = NULL)
+
+
+```
+
+#<a name="9"></a>
+# Zapewnienie powtarzalności, Regresor
+
+
+```{r set_seed, warning=FALSE, message=FALSE, echo=FALSE}
+set.seed(122024)
+```
+
+```{r regresor, cache=TRUE}
+df <- data_without_na_in_life_expectancy
+
+rdf <- df%>% select(Life.expectancy, Status, Adult.Mortality, infant.deaths, Alcohol, percentage.expenditure, Hepatitis.B, Measles, BMI, under.five.deaths, Polio, Total.expenditure, Diphtheria, HIV.AIDS, thinness..1.19.years, thinness.5.9.years, Income.composition.of.resources, Schooling)
+
+inTraining <- createDataPartition(y = rdf$Life.expectancy, p = .8, list = FALSE)
+training <- rdf[inTraining, ]
+testing <- rdf[-inTraining, ]
+ctrl <- trainControl(method = "repeatedcv", number = 4,repeats = 10)
+fitLm <- train(Life.expectancy ~ .,
+                data = training,
+                method = "lm",
+                metric = "RMSE",
+                trControl = ctrl)
+lmPredict<-predict(fitLm, newdata=testing)
+postResample(lmPredict,testing$Life.expectancy)
+```
+
+#<a name="10"></a>
+# Analiza ważnosci atrybutów
+
+```{r analiza}
+modelValues <- data.frame(obs = testing$Life.expectancy, pred = lmPredict)
+
+importance <- varImp(fitLm, scale = FALSE)
+ggplot(importance)
+```
+
+Powyższy rozkład cech w regresorze wskazał na znaczące powiązanie długości życia do wskaźnika śmiertelności u osób chorych na AIDS, oraz odsetkiem umieralności u osób dorosłych w przedziale 15-60 lat. W ostatnich latach choroba AIDS przestała być klasyfikowana jako choroba śmiertelna a zaklasyfikowana została jako choroba przewlekła. Stan ten dotyczy jednak krajów "rozwiniętych"
+
+Korelacja cech zachorowań na AIDS oraz niskiej długości uczenszczania do szkół powoduje brak znajomości metod antykoncepcji, co potęguje stopień zachorowań.
+
+Trzecim co do ważności atrybutem jest długość nauki w szkołach. Niższa przewidywana długość życia należy do krajów rozwijających się. W tych krajach dostęp do nauki i szkół jest ograniczony co pośrednio może wpływać na wazność tej cechy w regresorze.
+
+Najmniej ważnym spośród wykorzystanych cech jest niedowaga w wieku dziecięco-młodzieńczym oraz poziom spożywanego alkoholu.
