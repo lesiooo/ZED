@@ -148,7 +148,7 @@ corrplot(corMatrix, method = "square")
 #<a name="8"></a>
 # Interaktywny wykres
 
-```{r interaktywny wykres, warning=FALSE, cache=TRUE}
+```{r interaktywny wykres, warning=FALSE, cache=FALSE}
 wykres <- data_without_na_in_life_expectancy[1:151, ] %>% group_by(Country, Year) %>% summarise(life = Life.expectancy)
 
 ggplotwykres <- ggplot(data = wykres, aes(wykres$Country
