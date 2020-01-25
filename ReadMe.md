@@ -22,8 +22,9 @@ danych zawiera m. in. dane o umieralności dzieci i dorosłych, odsetku
 szczepień wykonywanych, czy danych ekonomicznych w poszczególnych
 krajach.
 
-Zbiór danych dostępny pod adresem: \#<a name="2"></a> \# Wykorzystane
-biblioteki
+Zbiór danych dostępny pod adresem:
+<a href="https://www.kaggle.com/kumarajarshi/life-expectancy-who" class="uri">https://www.kaggle.com/kumarajarshi/life-expectancy-who</a>
+\#<a name="2"></a> \# Wykorzystane biblioteki
 
 ``` r
 library(plotly)
@@ -164,6 +165,14 @@ for(i in 1:ncol(data_without_na_in_life_expectancy)){
 }
 clean_data <-data_without_na_in_life_expectancy
 ```
+
+Proces czyszczenia danych składał się z dwóch faz: 1) usunięcie rekordów
+zawierających wartości puste w kolumnie Life expectancy, 2) Wartości
+puste z pozostałych kolumn zastąpione zostały średnią z poszczególnych
+kolumn.
+
+Usunięcie wszystkich rekordów które zawierały wartości puste nie było
+możliwe, ze względu na to iż stracilibyśmy około 40% rekordów.
 
 \#<a name="6"></a> \# Analiza atrybutów + rozkłady wartości atrybutów
 
@@ -324,16 +333,16 @@ df <- data_without_na_in_life_expectancy
 rdf <- df%>% select(Life.expectancy, Status, Adult.Mortality, infant.deaths, Alcohol, percentage.expenditure, Hepatitis.B, Measles, BMI, under.five.deaths, Polio, Total.expenditure, Diphtheria, HIV.AIDS, thinness..1.19.years, thinness.5.9.years, Income.composition.of.resources, Schooling)
 
 inTraining <- createDataPartition(y = rdf$Life.expectancy, p = .8, list = FALSE)
-training <- rdf[inTraining, ]
-testing <- rdf[-inTraining, ]
+training_set <- rdf[inTraining, ]
+testing_set <- rdf[-inTraining, ]
 ctrl <- trainControl(method = "repeatedcv", number = 4,repeats = 10)
-fitLm <- train(Life.expectancy ~ .,
-                data = training,
+fit <- train(Life.expectancy ~ .,
+                data = training_set,
                 method = "lm",
                 metric = "RMSE",
                 trControl = ctrl)
-lmPredict<-predict(fitLm, newdata=testing)
-postResample(lmPredict,testing$Life.expectancy)
+predict<-predict(fit, newdata=testing_set)
+postResample(predict,testing_set$Life.expectancy)
 ```
 
     ##      RMSE  Rsquared       MAE 
@@ -342,9 +351,9 @@ postResample(lmPredict,testing$Life.expectancy)
 \#<a name="10"></a> \# Analiza ważnosci atrybutów
 
 ``` r
-modelValues <- data.frame(obs = testing$Life.expectancy, pred = lmPredict)
+modelValues <- data.frame(obs = testing_set$Life.expectancy, pred = predict)
 
-importance <- varImp(fitLm, scale = FALSE)
+importance <- varImp(fit, scale = FALSE)
 ggplot(importance)
 ```
 
